@@ -180,6 +180,32 @@ module Alipay
       request_uri(params, options).to_s
     end
 
+    BATCH_TRANS_NOTIFY_REQUIRED_PARAMS = %w( batch_no data notify_url batch_fee email)
+    BATCH_TRANS_NOTIFY_OPTIONAL_PARAMS = %w( buyer_account_name extend_param)
+    def self.batch_trans_notify_url(params, options = {})
+      params = Utils.stringify_keys(params)
+      check_required_params(params, BATCH_TRANS_NOTIFY_REQUIRED_PARAMS)
+      check_optional_params(params, BATCH_TRANS_NOTIFY_OPTIONAL_PARAMS)
+
+     data = params.delete('data')
+      detail_data = data.map do|item|
+        item = Utils.stringify_keys(item)
+        "#{item['trade_no']}^#{item['account']}^#{item['name']}^#{item['amount']}^#{item['detail']}"
+      end.join('|')
+
+      params = {
+        'service'        => 'batch_trans_notify',
+        '_input_charset' => 'utf-8',
+        'partner'        => options[:pid] || Alipay.pid,
+        'account_name'   => options[:pid] || Alipay.pid,
+        'pay_date'       => Time.now.strftime('%Y-%m-%d'),          # 支付时间
+        'batch_num'      => data.size,                              # 总笔数
+        'detail_data'    => detail_data                             # 转换后的单笔数据集字符串
+      }.merge(params)
+
+      request_uri(params, options).to_s
+    end
+
     def self.request_uri(params, options = {})
       uri = URI(GATEWAY_URL)
       uri.query = URI.encode_www_form(sign_params(params, options))
